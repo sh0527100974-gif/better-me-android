@@ -130,7 +130,7 @@ public class MainActivity extends Activity {
         waterBar=bar(waterGoal);waterBar.setProgress(water);LinearLayout.LayoutParams wp=lp(-1,7);wp.topMargin=dp(13);waterCard.addView(waterBar,wp);card(body,waterCard);
 
         LinearLayout meals=col();meals.addView(heading("הארוחות שלי"));
-        mealsTxt=txt("",13,muted,false);meals.addView(mealsTxt);
+        String savedMeals=prefs.getString("meals","");\n        mealsTxt=txt(savedMeals.isEmpty()?"עדיין לא הוספת ארוחות":savedMeals,13,muted,false);meals.addView(mealsTxt);
         Button mealBtn=btn("＋  הוספת מה שאכלתי",false);LinearLayout.LayoutParams mp=lp(-1,42);mp.topMargin=dp(12);meals.addView(mealBtn,mp);mealBtn.setOnClickListener(v->mealDialog());card(body,meals);
     }
     private View statCard(String icon,String title,String value,String unit){
