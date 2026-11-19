@@ -40,3 +40,4 @@ jobs:
         with:
           name: better-me-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+          
