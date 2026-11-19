@@ -3,6 +3,8 @@ name: Build BETTER ME APK
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 jobs:
   build:
@@ -19,18 +21,187 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
-        with:
-          packages: 'platforms;android-35 build-tools;35.0.0'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
-      - name: Extract app source
+      - name: Create Android project
         run: |
-          unzip -q better_me_android_source.zip -d /tmp/betterme
-          cp -R /tmp/betterme/better_me_android/. .
+          mkdir -p app/src/main/java/com/betterme/app
+
+          cat > settings.gradle.kts <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "BetterMe"
+          include(":app")
+          EOF
+
+          cat > build.gradle.kts <<'EOF'
+          plugins {
+              id("com.android.application") version "8.7.3" apply false
+          }
+          EOF
+
+          cat > app/build.gradle.kts <<'EOF'
+          plugins {
+              id("com.android.application")
+          }
+          android {
+              namespace = "com.betterme.app"
+              compileSdk = 35
+              defaultConfig {
+                  applicationId = "com.betterme.app"
+                  minSdk = 26
+                  targetSdk = 35
+                  versionCode = 1
+                  versionName = "1.0"
+              }
+          }
+          EOF
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application
+                  android:theme="@android:style/Theme.Material.Light.NoActionBar"
+                  android:label="BETTER ME">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat > app/src/main/java/com/betterme/app/MainActivity.java <<'EOF'
+          package com.betterme.app;
+
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.view.View;
+          import android.widget.*;
+          import android.graphics.Color;
+
+          public class MainActivity extends Activity {
+              int calories = 0;
+              int water = 0;
+              TextView calorieText, waterText;
+              android.content.SharedPreferences prefs;
+
+              public void onCreate(Bundle b) {
+                  super.onCreate(b);
+                  prefs = getSharedPreferences("betterme", 0);
+                  calories = prefs.getInt("calories", 0);
+                  water = prefs.getInt("water", 0);
+
+                  LinearLayout layout = new LinearLayout(this);
+                  layout.setOrientation(1);
+                  layout.setPadding(28, 35, 28, 28);
+                  layout.setBackgroundColor(Color.rgb(245,247,246));
+                  layout.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+
+                  ScrollView scroll = new ScrollView(this);
+                  scroll.addView(layout);
+
+                  TextView title = new TextView(this);
+                  title.setText("BETTER ME");
+                  title.setTextSize(30);
+                  title.setTextColor(Color.rgb(24,61,53));
+                  layout.addView(title);
+
+                  TextView subtitle = new TextView(this);
+                  subtitle.setText("הדרך שלך לגרסה טובה יותר");
+                  subtitle.setTextSize(18);
+                  layout.addView(subtitle);
+
+                  TextView h1 = new TextView(this);
+                  h1.setText("מעקב קלוריות");
+                  h1.setTextSize(23);
+                  layout.addView(h1);
+
+                  calorieText = new TextView(this);
+                  calorieText.setTextSize(18);
+                  layout.addView(calorieText);
+                  updateCalories();
+
+                  EditText amount = new EditText(this);
+                  amount.setHint("כמה קלוריות אכלת?");
+                  amount.setInputType(2);
+                  layout.addView(amount);
+
+                  Button add = new Button(this);
+                  add.setText("הוסף קלוריות");
+                  layout.addView(add);
+                  add.setOnClickListener(v -> {
+                      try {
+                          calories += Integer.parseInt(amount.getText().toString());
+                          prefs.edit().putInt("calories", calories).apply();
+                          updateCalories();
+                          amount.setText("");
+                      } catch(Exception e) {}
+                  });
+
+                  Button reset = new Button(this);
+                  reset.setText("אפס קלוריות");
+                  layout.addView(reset);
+                  reset.setOnClickListener(v -> {
+                      calories = 0;
+                      prefs.edit().putInt("calories", 0).apply();
+                      updateCalories();
+                  });
+
+                  TextView h2 = new TextView(this);
+                  h2.setText("שתיית מים");
+                  h2.setTextSize(23);
+                  layout.addView(h2);
+
+                  waterText = new TextView(this);
+                  waterText.setTextSize(18);
+                  layout.addView(waterText);
+                  updateWater();
+
+                  Button drink = new Button(this);
+                  drink.setText("שתיתי כוס מים +");
+                  layout.addView(drink);
+                  drink.setOnClickListener(v -> {
+                      water++;
+                      prefs.edit().putInt("water", water).apply();
+                      updateWater();
+                  });
+
+                  TextView h3 = new TextView(this);
+                  h3.setText("כל יום הוא התחלה חדשה 💪");
+                  h3.setTextSize(20);
+                  layout.addView(h3);
+
+                  setContentView(scroll);
+              }
+
+              void updateCalories() {
+                  calorieText.setText("נצרכו היום: " + calories + " קלוריות");
+              }
+
+              void updateWater() {
+                  waterText.setText("שתית היום: " + water + " כוסות מים");
+              }
+          }
+          EOF
 
       - name: Build APK
         run: gradle :app:assembleDebug
@@ -38,6 +209,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: better-me-apk
+          name: BETTER-ME-APK
           path: app/build/outputs/apk/debug/app-debug.apk
-          
