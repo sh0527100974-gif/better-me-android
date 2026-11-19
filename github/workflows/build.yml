@@ -3,8 +3,6 @@ name: Build BETTER ME APK
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 
 jobs:
   build:
@@ -19,6 +17,26 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platforms;android-35 build-tools;35.0.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Extract app source
+        run: |
+          unzip -q better_me_android_source.zip -d /tmp/betterme
+          cp -R /tmp/betterme/better_me_android/. .
+
       - name: Build APK
-        uses: android-actions/build-android-app@v3
-        
+        run: gradle :app:assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: better-me-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
